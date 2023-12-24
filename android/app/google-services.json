@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1038149671506",
+    "project_id": "kiranaclub-3accb",
+    "storage_bucket": "kiranaclub-3accb.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1038149671506:android:d5efe1a7b0f85900abdd8b",
+        "android_client_info": {
+          "package_name": "com.kiranaclub"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBDvLL59PdqtgiZ0fKJ8BMle1lRvkbWBGE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
