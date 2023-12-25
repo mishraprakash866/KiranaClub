@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { storeUserData } from "../services/Store";
-import { ActivityIndicator, StyleSheet, Text, View, Dimensions, TouchableOpacity } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View, Dimensions, TouchableOpacity, RefreshControl } from "react-native";
 import { colorPalettes, errCode, fonts, routeNames } from "../config/Constants";
 import { Header } from "../generalComponents/Header";
 import { getStoreList } from "../services/API";
 import { FlashList } from "@shopify/flash-list";
 import { Search } from "../generalComponents/Search";
-import { NoThumb } from "../generalComponents/ImageTemp";
+import { NoThumb, ThumbIcon } from "../generalComponents/ImageTemp";
 
 const Home = ({ navigation }: any) => {
 
@@ -16,24 +16,40 @@ const Home = ({ navigation }: any) => {
     const [allIDs, setAllIDs] = useState(userData?.stores);
     const [loader, setLoader] = useState(true);
     const [data, setData] = useState<any>([]);
+    const [searchData, setSearchData] = useState<any>([]);
+    const [refreshing, setRefreshing] = useState(false);
+    const [searchKeyWord, setSearchKeyword] = useState('');
 
-    const isEndHit = useRef(false);
-    const searchKeyword = useRef('');
+    const [isEndHit, setIsEndHit] = useState(false);
+    const [filterData, setFilterData] = useState<any>(null);
 
     useEffect(() => {
         callHomeAPi();
     }, [])
 
-    const callHomeAPi = () => {
-        let tempAllList = [...allIDs];
+    useEffect(() => {
+        if (searchKeyWord?.length > 0) {
+            const filteredData = data?.filter((ele: any) => (ele.name.toLowerCase()).includes(searchKeyWord.toLowerCase()));
+            setSearchData(filteredData);
+        }
+    }, [searchKeyWord])
+
+    const callHomeAPi = (paramData: any = undefined) => {
+        let tempAllList = (paramData) ? [...paramData] : [...allIDs];
         let specificIDs = tempAllList.splice(0, limit);
-        getStoreList([...specificIDs]).then((res: any) => {
-            console.log(res);
-            setLoader(false);
-            setAllIDs(tempAllList);
+        getStoreList([...specificIDs], filterData).then((res: any) => {
             if (res && res != errCode) {
+                setLoader(false);
+                setAllIDs(tempAllList);
                 setData((prev: any) => [...prev, ...res]);
-                isEndHit.current = false;
+                setIsEndHit(false);
+            } else {
+                if (tempAllList.length > 0) {
+                    callHomeAPi(tempAllList);
+                } else {
+                    setLoader(false);
+                    setAllIDs(tempAllList);
+                }
             }
         }).catch((e) => {
             console.log(e);
@@ -42,32 +58,41 @@ const Home = ({ navigation }: any) => {
     }
 
     const handleEndReachEvent = () => {
-        if (!isEndHit.current) {
-            isEndHit.current = true;
+        if (!isEndHit && searchKeyWord?.length == 0) {
+            setIsEndHit(true);
             callHomeAPi();
         }
     }
 
     const keyExtractor = (item: any, index: number) => index.toString();
 
-    const MemorizedElement = useCallback((txt: string) => {
-        searchKeyword.current = txt;
-    }, []);
+    const handleNavigation = (item: any) => {
+        console.log(item);
+        navigation.navigate(routeNames.detail, { item });
+    }
 
-    const handleSearchEvent = () => {
-        console.log(searchKeyword.current);
+    const outputEvent = (filterData: any) => {
+        setFilterData(filterData);
         setLoader(true);
         setData([]);
         setAllIDs(userData?.stores);
-        setTimeout(() => {
-            callHomeAPi();
-        }, 100);
     }
 
-    const handleNavigation = (item:any) => {
-        console.log(item);
-        navigation.navigate(routeNames.detail, {item});
-    }
+    useEffect(() => {
+        if (filterData) {
+            callHomeAPi(userData?.stores);
+        }
+    }, [filterData])
+
+    const onRefresh = () => {
+        setLoader(true);
+        setData([]);
+        setRefreshing(false);
+        setAllIDs(userData?.stores);
+        setTimeout(() => {
+            callHomeAPi(userData?.stores);
+        }, 100);
+    };
 
     return (
         <>
@@ -77,50 +102,61 @@ const Home = ({ navigation }: any) => {
                     title={`${userData?.name}'s Collections`}
                     isBackIcon={false}
                     isHomeIcon={true}
+                    isLogoutIcon={true}
+                    isFilterIcon={true}
+                    prev_filterData={filterData}
+                    outputEvent={outputEvent}
                 />
                 {loader ?
                     <View style={styles.body}>
                         <ActivityIndicator size={"large"} color={colorPalettes.chineseBlue} />
                     </View>
                     :
-                    <FlashList
-                        data={data}
-                        keyExtractor={keyExtractor}
-                        // ListHeaderComponent={() => (
-                        //     <View style={{ width: '100%', height: 100, paddingHorizontal: 16, justifyContent: 'center' }}>
-                        //         <Search setSearchKeyword={MemorizedElement} handleSearchEvent={handleSearchEvent} />
-                        //     </View>
-                        // )}
-                        onEndReached={handleEndReachEvent}
-                        estimatedItemSize={Dimensions.get('window').height}
-                        showsVerticalScrollIndicator={false}
-                        ListFooterComponent={() => (
-                            <>
-                                <View style={{ width: '100%', height: 60, justifyContent: 'center', alignItems: 'center' }}>
-                                    {allIDs.length > 0 &&
-                                        <ActivityIndicator size={"small"} color={colorPalettes.chineseBlue} />
+                    <>
+                        <View style={{ width: '100%', padding: 16, height: 80 }}>
+                            <Search setSearchKeyword={setSearchKeyword} searchKeyWord={searchKeyWord} />
+                        </View>
+                        <FlashList
+                            data={(searchKeyWord?.length > 0) ? searchData : data}
+                            keyExtractor={keyExtractor}
+                            refreshControl={
+                                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                            }
+                            onEndReached={handleEndReachEvent}
+                            estimatedItemSize={Dimensions.get('window').height}
+                            showsVerticalScrollIndicator={false}
+                            ListFooterComponent={() => (
+                                <>
+                                    <View style={{ width: '100%', height: 60, justifyContent: 'center', alignItems: 'center' }}>
+                                        {(allIDs.length > 0 && searchKeyWord?.length == 0 && data.length > 7) &&
+                                            <ActivityIndicator size={"small"} color={colorPalettes.chineseBlue} />
+                                        }
+                                    </View>
+                                </>
+                            )}
+                            renderItem={({ item, index }) => (
+                                <>
+                                    <TouchableOpacity onPress={() => handleNavigation(item)} style={{ width: '100%', height: 90, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <View style={{ width: 72, height: 72, borderRadius: 10, overflow: 'hidden' }}>
+                                            {item?.imgCol ?
+                                                <ThumbIcon uri={item?.imgCol[0]} />
+                                                :
+                                                <NoThumb />
+                                            }
+                                        </View>
+                                        <View style={{ flex: 0.95, height: 60, justifyContent: 'space-between' }}>
+                                            <Text numberOfLines={2} style={{ fontFamily: fonts.family.poppins, fontSize: fonts.size.h5, color: colorPalettes.black, fontWeight: 'bold' }}>{item?.name}</Text>
+                                            <Text style={[styles.subTxt]}>{item?.type}</Text>
+                                            <Text style={[styles.subTxt, { paddingTop: 5 }]}><Text style={{ fontWeight: 'bold', fontFamily: fonts.family.poppins }}>Area: </Text>{item?.area}</Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                    {(data.length - 1) != index &&
+                                        <View style={{ flex: 1, height: 1, marginHorizontal: 16, backgroundColor: colorPalettes.azureishWhite, marginVertical: 8 }} />
                                     }
-                                </View>
-                            </>
-                        )}
-                        renderItem={({ item, index }) => (
-                            <>
-                                <TouchableOpacity onPress={()=>handleNavigation(item)} style={{ width: '100%', height: 90, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <View style={{ width: 72, height: 72, borderRadius: 10, overflow: 'hidden' }}>
-                                        <NoThumb />
-                                    </View>
-                                    <View style={{ flex: 0.95, height: 60, justifyContent: 'space-between' }}>
-                                        <Text numberOfLines={2} style={{ fontFamily: fonts.family.poppins, fontSize: fonts.size.h5, color: colorPalettes.black, fontWeight: 'bold' }}>{item?.name}</Text>
-                                        <Text style={[styles.subTxt]}>{item?.type}</Text>
-                                        <Text style={[styles.subTxt, { paddingTop: 5 }]}><Text style={{ fontWeight: 'bold', fontFamily: fonts.family.poppins }}>Area: </Text>{item?.area}</Text>
-                                    </View>
-                                </TouchableOpacity>
-                                {(data.length - 1) != index &&
-                                    <View style={{ flex: 1, height: 1, marginHorizontal: 16, backgroundColor: colorPalettes.azureishWhite, marginVertical: 8 }} />
-                                }
-                            </>
-                        )}
-                    />
+                                </>
+                            )}
+                        />
+                    </>
                 }
             </View>
         </>

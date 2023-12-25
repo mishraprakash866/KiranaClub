@@ -12,6 +12,7 @@ import { colorPalettes, fonts, routeNames } from '../config/Constants';
 import { Button1 } from '../generalComponents/Buttons';
 import { checkUser } from '../services/API';
 import { storeUserData } from '../services/Store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Login = ({ navigation }: any) => {
   const [username, setUsername] = useState('');
@@ -28,6 +29,7 @@ const Login = ({ navigation }: any) => {
       checkUser({username, password}).then((res:any) => {
         setLoader(false);
         if(res){
+          storeLocalData(res);
           storeUserData.storeVal(res);
           navigation.replace(routeNames.home);
         }else{
@@ -40,6 +42,10 @@ const Login = ({ navigation }: any) => {
       })
     }
   };
+
+  const storeLocalData = async(res:any) => {
+    await AsyncStorage.setItem('userData', JSON.stringify(res));
+  }
 
   const validation = () => {
     if ((username?.toString()).length == 0 && (password?.toString()).length == 0) {

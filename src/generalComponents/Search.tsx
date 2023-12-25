@@ -3,9 +3,9 @@ import { StyleSheet, TextInput, View } from "react-native";
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { colorPalettes } from "../config/Constants";
 
-export const Search = ({setSearchKeyword, handleSearchEvent}:any) => {
+export const Search = ({setSearchKeyword, searchKeyWord}:any) => {
 
-    const [val, setVal] = useState('');
+    const [val, setVal] = useState(searchKeyWord);
 
     const updateValue = (txt:any) => {
         setVal(txt);
@@ -22,7 +22,6 @@ export const Search = ({setSearchKeyword, handleSearchEvent}:any) => {
                     value={val}
                     keyboardType="web-search"
                     onChangeText={(text) => updateValue(text)}
-                    onBlur={handleSearchEvent}
                 />
             </View>
         </>

@@ -1,7 +1,8 @@
 export const routeNames = {
     auth: { login: 'Login' },
     home: 'Home',
-    detail: 'Detail'
+    detail: 'Detail',
+    splash: 'Splash'
 };
 
 export const fonts = {
